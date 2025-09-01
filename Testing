@@ -1900,14 +1900,11 @@ void managePayment() {
     case 0:
         showMainScreen();
         break;
-
-        // ==============================
-        // Case 1: Create NEW Client + Payment
-        // ==============================
+     
     case 1: {
         Client newClient;
         string newClientID = uniqueIDGenerator<Client>("C", "clients.csv");
-        newClient.clientID = stoi(newClientID.substr(1)); // Extract number only
+        newClient.clientID = stoi(newClientID.substr(1));  // Number only
 
         cout << "\n--- Enter Client Details ---\n";
         cout << "Enter Client Name: ";
@@ -1997,15 +1994,12 @@ void managePayment() {
         saveList(clientList, "clients.csv");
         saveList(paymentList, "payments.csv");
 
-        cout << "\n✅ Client and Payment Recorded! Status: " << status << endl;
+        cout << "\n Client and Payment Recorded! Status: " << status << endl;
         cin.get();
         managePayment();
         break;
     }
-
-          // ==============================
-          // Case 2: Delete Payment (3-attempt rule)
-          // ==============================
+    // Delete Payment
     case 2: {
         int attempts = 0, id;
         bool found = false;
@@ -2017,25 +2011,22 @@ void managePayment() {
             if (it != paymentList.end()) {
                 paymentList.erase(it, paymentList.end());
                 saveList(paymentList, "payments.csv");
-                cout << "✅ Payment removed successfully!\n";
+                cout << "Payment removed successfully!\n";
                 found = true;
                 break;
             }
             else {
-                cout << "❌ Payment not found! Try again.\n";
+                cout << "Payment not found! Try again.\n";
                 attempts++;
             }
         }
 
-        if (!found) cout << "\n⚠️ Too many invalid attempts. Returning to Payment Menu.\n";
+        if (!found) cout << "\nToo many invalid attempts. Returning to Payment Menu.\n";
         cin.get();
         managePayment();
         break;
     }
-
-          // ==============================
-          // Case 3: Edit Payment (3-attempt rule + balance)
-          // ==============================
+    // Edit Payment 
     case 3: {
         int attempts = 0, id;
         Payment* selectedPayment = nullptr;
@@ -2049,13 +2040,13 @@ void managePayment() {
                 break;
             }
             else {
-                cout << "❌ Payment not found! Try again.\n";
+                cout << "Payment not found! Try again.\n";
                 attempts++;
             }
         }
 
         if (!selectedPayment) {
-            cout << "\n⚠️ Too many invalid attempts. Returning to Payment Menu.\n";
+            cout << "\nToo many invalid attempts. Returning to Payment Menu.\n";
             cin.get();
             managePayment();
             break;
@@ -2077,15 +2068,13 @@ void managePayment() {
         }
 
         saveList(paymentList, "payments.csv");
-        cout << "✅ Payment updated successfully!\n";
+        cout << "Payment updated successfully!\n";
         cin.get();
         managePayment();
         break;
     }
 
-          // ==============================
-          // Case 4: View All Payments
-          // ==============================
+    // View All Payments
     case 4: {
         for (const auto& pay : paymentList) {
             vector<pair<string, string>> record;
