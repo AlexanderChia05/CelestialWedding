@@ -6,8 +6,11 @@
 #include <string>
 #include <vector>
 #include <limits>
+#include <cstdio>
 #include <regex>
 #include <map>
+#include <algorithm>
+#include <cctype>
 using namespace std;
 
 
@@ -35,7 +38,7 @@ struct Person {
 };
 
 struct Vendor {
-    string vendorID = "V0000";
+    string vendorID = "VD0000";
     Person person;
     string vendorType;
     float cost = 0.00;
@@ -144,7 +147,7 @@ struct Package {
 };
 
 struct Venue {
-    string venueID = "V0000"; // Default value with prefix
+    string venueID = "VN0000"; // Default value with prefix
     string venueName;
     string location;
     int capacity = 0;
@@ -239,29 +242,62 @@ struct Admin {
 };
 
 struct Payment {
-    int paymentID = 0;
-    int clientID = 0;
-    float amountPaid = 0;
-    string paymentDate;
-    string paymentStatus;
+    int    paymentID = 0;
+    int    clientID = 0;
+    float  amountPaid = 0.0f;      // 本次实际支付金额
+    string paymentDate;            // YYYY-MM-DD
+    string paymentMethod;          // Cash/Card/Transfer/...
+    float  discountApplied = 0.0f; // 本次“折扣”，用于冲减应付总额（不是退款）
+    string note;                   // 备注（尽量不要逗号，避免CSV解析麻烦）
+    string paymentStatus;          // RECEIVED/REFUND/ORDER_CONFIRMED/DISCOUNT_APPLIED ...
 
     Payment() = default;
+    Payment(const string& line) 
+    {
+        if (line.empty()) return;
+        vector<string> cols;
+        string cell; stringstream ss(line);
+        while (getline(ss, cell, ',')) cols.push_back(cell);
 
-    Payment(const string& line) {
-        if (!line.empty()) {
-            stringstream ss(line);
-            ss >> paymentID; ss.ignore();
-            ss >> clientID; ss.ignore();
-            ss >> amountPaid; ss.ignore();
-            getline(ss, paymentDate, ',');
-            getline(ss, paymentStatus);
+        auto asInt = [](const string& s)->int { try { return stoi(s); } catch (...) { return 0; } };
+        auto asFloat = [](const string& s)->float { try { return stof(s); } catch (...) { return 0.0f; } };
+
+        if (cols.size() >= 5) 
+        {
+            paymentID = asInt(cols[0]);
+            clientID = asInt(cols[1]);
+            amountPaid = asFloat(cols[2]);
+            paymentDate = cols[3];
+
+            if (cols.size() >= 8) {
+                paymentMethod = cols[4];
+                discountApplied = asFloat(cols[5]);
+                note = cols[6];
+                paymentStatus = cols[7];
+            }
+            else {
+                // 旧行降级
+                paymentMethod = "";
+                discountApplied = 0.0f;
+                note = "";
+                paymentStatus = cols[4];
+            }
         }
     }
 
-    void toString(string& line) const {
-        line = to_string(paymentID) + "," + to_string(clientID) + "," + to_string(amountPaid) + "," + paymentDate + "," + paymentStatus;
+    void toString(string& line) const 
+    {
+        line = to_string(paymentID) + "," +
+            to_string(clientID) + "," +
+            to_string(amountPaid) + "," +
+            paymentDate + "," +
+            paymentMethod + "," +
+            to_string(discountApplied) + "," +
+            note + "," +
+            paymentStatus;
     }
 };
+
 
 struct EventSchedule {
     int scheduleID = 0;
@@ -352,6 +388,7 @@ struct StringConst {
         " | 4. View Payment Records                 |  \n"
         " | 5. Manage Admin                         |  \n"
         " | 6. Event Monitoring                     |  \n"
+        " | 7. Search Functionality                 |  \n"
         " | 0. Exit                                 |  \n"
         " +-----------------------------------------+  \n";
 
@@ -366,6 +403,8 @@ struct StringConst {
         " | 3. Update Client                        |  \n"
         " +-----------------------------------------+  \n"
         " | 4. Show All Clients                     |  \n"
+        " +-----------------------------------------+  \n"
+        " | 5. Checkout / Reservation               |  \n"
         " +-----------------------------------------+  \n"
         " | 0. Back to Main Menu                    |  \n"
         " +-----------------------------------------+  \n";
@@ -576,7 +615,7 @@ void saveList(const vector<T>& list, const string& filename) {
 template <typename T>
 bool validateInput(const T& input, const string& type = "") {
     if constexpr (is_same_v<T, string>) {
-        cout << "Debug: Input received: '" << input << "'" << endl; // Debug output
+        //cout << "Debug: Input received: '" << input << "'" << endl; // Debug output
         if (type == "email") {
             regex emailPattern(R"(^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$)");
             return regex_match(input, emailPattern) && !input.empty();
@@ -693,11 +732,16 @@ string uniqueIDGenerator(const string& prefix, const string& filename) {
     // Increment counter and generate new ID
     int& counter = idCounters[key];
     counter++;
-    char idStr[6];
-    sprintf_s(idStr, "%04d", counter);
-    string newID = prefix + idStr;
 
-    // Verify uniqueness by checking if ID exists in file
+    char idStr[6]; // "0000" + '\0'
+    #ifdef _MSC_VER
+        sprintf_s(idStr, "%04d", counter);
+    #else
+        snprintf(idStr, sizeof(idStr), "%04d", counter);
+    #endif
+        string newID = prefix + idStr;
+
+    // 确保唯一：若冲突则自增
     vector<T> list = getList<T>(filename);
     for (const auto& item : list) {
         string line;
@@ -705,10 +749,15 @@ string uniqueIDGenerator(const string& prefix, const string& filename) {
         stringstream ss(line);
         string existingID;
         getline(ss, existingID, ',');
-        if (existingID == newID) {
+        if (existingID == newID) 
+        {
             counter++;
-            sprintf_s(idStr, "%04d", counter);
-            newID = prefix + idStr;
+            #ifdef _MSC_VER
+                sprintf_s(idStr, "%04d", counter);
+            #else
+                snprintf(idStr, sizeof(idStr), "%04d", counter);
+            #endif
+                newID = prefix + idStr;
         }
     }
 
@@ -830,7 +879,276 @@ void manageVenue();
 void manageCatering();
 void manageVendor();
 void manageAdmin();
+void manageClient();
+void managePayment();
+void manageGuest();
+void manageSchedule();
+void manageEventMonitoring();
+void searchFun();
+void checkoutWizard();
 
+
+int nextIntId(const string& filename);
+string joinVec(const vector<string>& v, char sep = ';');
+vector<string> splitIds(const string& s, char sep = ';');
+float computeClientTotal(const Client& c, const vector<Package>& packages, const vector<Venue>& venues, const vector<Cater>& caters, const vector<Vendor>& vendors);
+
+int nextIntId(const string& filename) {
+    ifstream f(filename);
+    int maxId = 0;
+    string line;
+    while (getline(f, line)) {
+        if (line.empty()) continue;
+        stringstream ss(line);
+        int id = 0;
+        ss >> id;                 // 读第一列的整型 ID
+        if (!ss.fail()) maxId = max(maxId, id);
+    }
+    return maxId + 1;
+}
+
+string joinVec(const vector<string>& v, char sep) {
+    string out;
+    for (size_t i = 0; i < v.size(); ++i) {
+        out += v[i];
+        if (i + 1 < v.size()) out += sep;
+    }
+    return out;
+}
+
+vector<string> splitIds(const string& s, char sep) {
+    vector<string> ids;
+    string item;
+    stringstream ss(s);
+    while (getline(ss, item, sep)) {
+        if (!item.empty()) ids.push_back(item);
+    }
+    return ids;
+}
+
+// 费用计算（MVP）：优先使用套餐价；否则 = 场地租金 + 餐饮人均（不乘人数，保持和你当前 Package 逻辑一致）+ 所选供应商费用总和
+float computeClientTotal(const Client& c, const vector<Package>& packages, const vector<Venue>& venues, const vector<Cater>& caters, const vector<Vendor>& vendors) 
+{
+    float total = 0.0f;
+
+    if (!c.selectedPackage.empty()) {
+        auto pit = find_if(packages.begin(), packages.end(),
+            [&](const Package& p) { return p.packageID == c.selectedPackage; });
+        if (pit != packages.end()) total += pit->price;
+    }
+    else {
+        if (!c.venueBooked.empty()) {
+            auto vit = find_if(venues.begin(), venues.end(),
+                [&](const Venue& v) { return v.venueID == c.venueBooked; });
+            if (vit != venues.end()) total += vit->rentalCost;
+        }
+        if (!c.cateringSelected.empty()) {
+            auto cit = find_if(caters.begin(), caters.end(),
+                [&](const Cater& c2) { return c2.caterID == c.cateringSelected; });
+            if (cit != caters.end()) total += cit->costPerPerson;
+        }
+    }
+
+    for (const auto& vid : c.selectedVendors) {
+        auto vit = find_if(vendors.begin(), vendors.end(),
+            [&](const Vendor& v) { return v.vendorID == vid; });
+        if (vit != vendors.end()) total += vit->cost;
+    }
+    return total;
+}
+
+// 根据 payments.csv 重新汇总每个 Client 的已付金额与支付状态
+// 付款&折扣 → 回写每个 Client 的已付与状态
+void recomputeClientPayments(vector<Client>& clients, const vector<Payment>& payments) 
+{
+    map<int, float> sumsPaid;
+    map<int, float> sumsDiscount;
+    for (const auto& p : payments) {
+        sumsPaid[p.clientID] += p.amountPaid;
+        sumsDiscount[p.clientID] += p.discountApplied;
+    }
+    for (auto& c : clients) {
+        c.amountPaid = sumsPaid[c.clientID];
+        float effectiveTotal = max(0.0f, c.totalPayment - sumsDiscount[c.clientID]); // 折扣冲减应付
+        if (c.amountPaid <= 0.0f) c.paymentStatus = "UNPAID";
+        else if (c.amountPaid + 1e-3 >= effectiveTotal) c.paymentStatus = "PAID";
+        else c.paymentStatus = "PARTIAL";
+    }
+}
+
+
+void checkoutWizard() {
+    StringConst strConst;
+    vector<Client>   clients = getList<Client>("clients.csv");
+    vector<Package>  packages = getList<Package>("packages.csv");
+    vector<Venue>    venues = getList<Venue>("venues.csv");
+    vector<Cater>    caters = getList<Cater>("caterings.csv");
+    vector<Vendor>   vendors = getList<Vendor>("vendors.csv");
+    vector<Payment>  payments = getList<Payment>("payments.csv");
+
+    auto saveAll = [&]() {
+        saveList(payments, "payments.csv");
+        recomputeClientPayments(clients, payments);
+        saveList(clients, "clients.csv");
+        };
+
+    system("cls");
+    cout << strConst.LOGO_O << endl;
+    cout << strConst.TITLE << endl;
+
+    if (clients.empty()) {
+        cout << "No clients found. Please create a client first.\n";
+        cout << "Press Enter..."; cin.get();
+        return;
+    }
+
+    // 选择客户
+    {
+        vector<vector<pair<string, string>>> recs;
+        for (auto& c : clients) {
+            recs.push_back({
+                {"Client ID", to_string(c.clientID)},
+                {"Name", c.person.name},
+                {"Wedding Date", c.weddingDate},
+                {"Total", to_string(c.totalPayment)},
+                {"Paid", to_string(c.amountPaid)},
+                {"Status", c.paymentStatus}
+                });
+        }
+        printRecords<string>(recs, 1);
+    }
+    int cid = getValidatedInput<int>("Enter client ID to checkout: ");
+    auto cit = find_if(clients.begin(), clients.end(),
+        [&](const Client& c) { return c.clientID == cid; });
+    if (cit == clients.end()) { cout << "Client not found.\nPress Enter..."; cin.get(); return; }
+    Client& c = *cit;
+
+    // 计算小计
+    float subtotal = computeClientTotal(c, packages, venues, caters, vendors);
+    c.totalPayment = subtotal;
+
+    // 输入折扣
+    float discount = getValidatedInput<float>("Enter discount amount (0 for none): ");
+    if (discount < 0) discount = 0;
+    if (discount > subtotal) discount = subtotal;
+    float net = subtotal - discount;
+
+    // 发票预览
+    {
+        vector<vector<pair<string, string>>> inv;
+        inv.push_back({
+            {"Invoice (Preview)", ""},
+            {"Client", c.person.name},
+            {"Email",  c.person.email},
+            {"Partner", c.partnerName},
+            {"Wedding Date", c.weddingDate}
+            });
+        inv.push_back({
+            {"Selections", ""},
+            {"Package", c.selectedPackage.empty() ? "-" : c.selectedPackage},
+            {"Venue",   c.venueBooked.empty() ? "-" : c.venueBooked},
+            {"Catering",c.cateringSelected.empty() ? "-" : c.cateringSelected},
+            {"Vendors", joinVec(c.selectedVendors)}
+            });
+        inv.push_back({
+            {"Pricing", ""},
+            {"Subtotal", to_string(subtotal)},
+            {"Discount", to_string(discount)},
+            {"Net Total", to_string(net)}
+            });
+        printRecords<string>(inv, 1);
+    }
+
+    string confirm = getValidatedInput<string>("Confirm this order? (Y/N): ", "non_empty");
+    if (!(confirm.size() && (confirm[0] == 'Y' || confirm[0] == 'y'))) {
+        cout << "Cancelled. Press Enter..."; cin.get();
+        return;
+    }
+
+    // 选择是否立即支付
+    string payNow = getValidatedInput<string>("Pay now? (Y/N): ", "non_empty");
+    if (payNow.size() && (payNow[0] == 'Y' || payNow[0] == 'y')) 
+    {
+        string method = getValidatedInput<string>("Payment method (Cash/Card/Transfer/...): ", "non_empty");
+        float amount = getValidatedInput<float>("Payment amount (default is Net): ");
+
+        if (amount <= 0) amount = net; // 默认付净额
+        if (amount > net) amount = net;
+
+        Payment p;
+        p.paymentID = nextIntId("payments.csv");
+        p.clientID = c.clientID;
+        p.amountPaid = amount;
+        p.paymentDate = getValidatedInput<string>("Payment date (YYYY-MM-DD): ", "date");
+        p.paymentMethod = method;
+        p.discountApplied = discount;              // 将此次折扣一并入账
+        p.note = "checkout";
+        p.paymentStatus = "RECEIVED";
+
+        payments.push_back(p);
+        saveAll();
+
+        float allDiscount = 0.0f;
+        for (const auto& q : payments) 
+        {
+            if (q.clientID == c.clientID) allDiscount += q.discountApplied;
+        }
+
+        // 收据
+        vector<vector<pair<string, string>>> receipt;
+        receipt.push_back({
+            {"Receipt", ""},
+            {"Payment ID", to_string(p.paymentID)},
+            {"Client ID", to_string(p.clientID)},
+            {"Client", c.person.name},
+            {"Date", p.paymentDate}
+            });
+        receipt.push_back({
+            {"Amount Paid", to_string(p.amountPaid)},
+            {"Method", p.paymentMethod},
+            {"Discount Applied", to_string(p.discountApplied)},
+            {"Client Paid Total", to_string(c.amountPaid)},
+            {"Effective Order Total", to_string(max(0.0f, c.totalPayment - p.discountApplied))},
+            {"Client Status", c.paymentStatus}
+            });
+        printRecords<string>(receipt, 1);
+        cout << "Press Enter..."; 
+        cin.get();
+    }
+    else {
+        // 不立即支付：若有折扣，建议也入账，以便状态计算用“有效总额”
+        if (discount > 0.0f) {
+            Payment p;
+            p.paymentID = nextIntId("payments.csv");
+            p.clientID = c.clientID;
+            p.amountPaid = 0.0f;
+            p.paymentDate = getValidatedInput<string>("Record date for discount (YYYY-MM-DD): ", "date");
+            p.paymentMethod = "N/A";
+            p.discountApplied = discount;
+            p.note = "discount only";
+            p.paymentStatus = "DISCOUNT_APPLIED";
+            payments.push_back(p);
+            saveAll();
+        }
+        else {
+            // 只记录“订单确认”
+            Payment p;
+            p.paymentID = nextIntId("payments.csv");
+            p.clientID = c.clientID;
+            p.amountPaid = 0.0f;
+            p.paymentDate = getValidatedInput<string>("Order confirmation date (YYYY-MM-DD): ", "date");
+            p.paymentMethod = "N/A";
+            p.discountApplied = 0.0f;
+            p.note = "order confirmed (no payment)";
+            p.paymentStatus = "ORDER_CONFIRMED";
+            payments.push_back(p);
+            saveAll();
+        }
+        cout << "Order confirmed. Current client status: " << c.paymentStatus << "\n";
+        cout << "Press Enter..."; 
+        cin.get();
+    }
+}
 
 
 bool login() {
@@ -901,7 +1219,7 @@ void showMainScreen() {
         exit(0);
         break;
     case 1:
-        //manageClient();
+        manageClient();
         break;
     case 2:
         manageEvent();
@@ -910,16 +1228,16 @@ void showMainScreen() {
         manageVendor();
         break;
     case 4:
-        //managePayment();
+        managePayment();
         break;
     case 5:
         manageAdmin();
         break;
     case 6:
-        //manageEventMonitoring();
+        manageEventMonitoring();
         break;
     case 7:
-        //searchFun();
+        searchFun();
         break;
     default:
         cout << " Invalid option. Please try again." << endl;
@@ -1258,7 +1576,7 @@ void manageVenue() {
         newVenue.capacity = capacity;
         newVenue.rentalCost = price;
 
-        string generatedID = uniqueIDGenerator<Venue>("V", "venues.csv");
+        string generatedID = uniqueIDGenerator<Venue>("VN", "venues.csv");
         newVenue.venueID = generatedID;
 
         newVenue.toString(name);
@@ -1589,7 +1907,7 @@ void manageVendor() {
         float cost = getValidatedInput<float>("\nEnter vendor service cost: ", "", "Invalid cost. Please enter a valid number: ");
 
         Vendor newVendor;
-        newVendor.vendorID = uniqueIDGenerator<Vendor>("V", "vendors.csv");
+        newVendor.vendorID = uniqueIDGenerator<Vendor>("VD", "vendors.csv");
         newVendor.vendorType = vendorType;
         newVendor.person.name = name;
         newVendor.person.email = email;
@@ -1873,6 +2191,663 @@ void manageAdmin() {
         break;
     }
 }
+
+
+
+void manageClient() {
+    StringConst strConst;
+    int x;
+
+    // 载入各表（用于选择与计算）
+    vector<Client>   clients = getList<Client>("clients.csv");
+    vector<Package>  packages = getList<Package>("packages.csv");
+    vector<Venue>    venues = getList<Venue>("venues.csv");
+    vector<Cater>    caters = getList<Cater>("caterings.csv");
+    vector<Vendor>   vendors = getList<Vendor>("vendors.csv");
+
+    auto saveClients = [&]() { saveList(clients, "clients.csv"); };
+
+    auto showAll = [&]() {
+        system("cls");
+        cout << strConst.LOGO_O << endl;
+        cout << strConst.TITLE << endl;
+        cout << "List of Clients:\n";
+        vector<vector<pair<string, string>>> recs;
+        for (const auto& c : clients) {
+            vector<pair<string, string>> r;
+            r.push_back({ "Client ID",       to_string(c.clientID) });
+            r.push_back({ "Name",            c.person.name });
+            r.push_back({ "Email",           c.person.email });
+            r.push_back({ "Contact",         c.person.contact });
+            r.push_back({ "Partner",         c.partnerName });
+            r.push_back({ "Wedding Date",    c.weddingDate });
+            r.push_back({ "Guests",          to_string(c.guestCount) });
+            r.push_back({ "Tables",          to_string(c.tableCount) });
+            r.push_back({ "Package",         c.selectedPackage });
+            r.push_back({ "Venue",           c.venueBooked });
+            r.push_back({ "Catering",        c.cateringSelected });
+            r.push_back({ "Vendors",         joinVec(c.selectedVendors) });
+            r.push_back({ "Total Payment",   to_string(c.totalPayment) });
+            r.push_back({ "Amount Paid",     to_string(c.amountPaid) });
+            r.push_back({ "Status",          c.paymentStatus });
+            recs.push_back(r);
+        }
+        if (recs.empty()) cout << "No clients found.\n";
+        else printRecords<string>(recs, 1);
+        cout << "\nPress Enter to continue..."; cin.get();
+        };
+
+    while (true) {
+        system("cls");
+        cout << strConst.LOGO_O << endl;
+        cout << strConst.TITLE << endl;
+        cout << strConst.ClientMenu;  // 复用你已有的 Client 菜单文案
+        x = getValidatedInput<int>(" Choose an option: ", "", " Invalid option. Please enter a number: ");
+
+        if (x == 0) { showMainScreen(); return; }
+
+        else if (x == 1) { // Create Client
+            system("cls");
+            cout << strConst.LOGO_O << endl << strConst.TITLE << endl;
+
+            Client c;
+            c.clientID = nextIntId("clients.csv");
+            c.person.name = getValidatedInput<string>("\nEnter client name: ", "non_empty");
+            c.person.email = getValidatedInput<string>("Enter client email: ", "email");
+            c.person.contact = getValidatedInput<string>("Enter client contact: ", "non_empty");
+            c.partnerName = getValidatedInput<string>("Enter partner name: ", "non_empty");
+            c.weddingDate = getValidatedInput<string>("Enter wedding date (YYYY-MM-DD): ", "date");
+            c.specialRequest = getValidatedInput<string>("Enter special request (can be blank): ");
+            c.guestCount = getValidatedInput<int>("Enter guest count: ", "", " Invalid number: ");
+            c.tableCount = getValidatedInput<int>("Enter table count: ", "", " Invalid number: ");
+
+            // 显示可选资源（只做参考，不强制）
+            if (!packages.empty()) {
+                cout << "\nPackages:\n";
+                vector<vector<pair<string, string>>> recs;
+                for (auto& p : packages)
+                    recs.push_back({ {"Package ID",p.packageID},{"Name",p.packageName},{"Price",to_string(p.price)} });
+                printRecords<string>(recs, 1);
+            }
+            cout << "Enter package ID (or leave blank): ";
+            string pkg; getline(cin, pkg);
+            c.selectedPackage = pkg;
+
+            if (c.selectedPackage.empty()) {
+                if (!venues.empty()) {
+                    cout << "\nVenues:\n";
+                    vector<vector<pair<string, string>>> recs;
+                    for (auto& v : venues)
+                        recs.push_back({ {"Venue ID",v.venueID},{"Name",v.venueName},{"Rental",to_string(v.rentalCost)} });
+                    printRecords<string>(recs, 1);
+                }
+                c.venueBooked = getValidatedInput<string>("Enter venue ID (or leave blank): ");
+
+                if (!caters.empty()) {
+                    cout << "\nCaterings:\n";
+                    vector<vector<pair<string, string>>> recs;
+                    for (auto& ct : caters)
+                        recs.push_back({ {"Cater ID",ct.caterID},{"Name",ct.caterName},{"Cost/Person",to_string(ct.costPerPerson)} });
+                    printRecords<string>(recs, 1);
+                }
+                c.cateringSelected = getValidatedInput<string>("Enter catering ID (or leave blank): ");
+            }
+
+            if (!vendors.empty()) {
+                cout << "\nVendors:\n";
+                vector<vector<pair<string, string>>> recs;
+                for (auto& vd : vendors)
+                    recs.push_back({ {"Vendor ID",vd.vendorID},{"Type",vd.vendorType},{"Name",vd.person.name},{"Cost",to_string(vd.cost)} });
+                printRecords<string>(recs, 2);
+            }
+            cout << "Enter vendor IDs separated by ';' (or leave blank): ";
+            string vids; getline(cin, vids);
+            c.selectedVendors = splitIds(vids, ';');
+
+            // 计算费用 & 初始支付状态
+            c.totalPayment = computeClientTotal(c, packages, venues, caters, vendors);
+            c.amountPaid = 0.0f;
+            c.paymentStatus = "UNPAID";
+
+            clients.push_back(c);
+            saveClients();
+
+            cout << "\nClient created. Total Payment = " << c.totalPayment << "\n";
+            cout << "Press Enter to continue..."; cin.get();
+        }
+
+        else if (x == 2) { // Remove Client
+            showAll();
+            int id = getValidatedInput<int>("Enter client ID to remove: ");
+            auto it = remove_if(clients.begin(), clients.end(),
+                [&](const Client& c) { return c.clientID == id; });
+            if (it != clients.end()) {
+                clients.erase(it, clients.end());
+                saveClients();
+                cout << "Removed.\n";
+            }
+            else {
+                cout << "Client not found.\n";
+            }
+            cout << "Press Enter to continue..."; cin.get();
+        }
+
+        else if (x == 3) { // Update Client
+            showAll();
+            int id = getValidatedInput<int>("Enter client ID to update: ");
+            auto it = find_if(clients.begin(), clients.end(),
+                [&](const Client& c) { return c.clientID == id; });
+            if (it == clients.end()) {
+                cout << "Client not found.\nPress Enter..."; cin.get();
+                continue;
+            }
+            Client& c = *it;
+
+            cout << "Updating Client " << c.clientID << " (" << c.person.name << ")\n";
+            c.person.name = updateField(c.person.name, "New name? (Enter to keep)", "non_empty");
+            c.person.email = updateField(c.person.email, "New email? (Enter to keep)", "email");
+            c.person.contact = updateField(c.person.contact, "New contact? (Enter to keep)", "non_empty");
+            c.partnerName = updateField(c.partnerName, "New partner name? (Enter to keep)", "non_empty");
+            c.weddingDate = updateField(c.weddingDate, "New wedding date (YYYY-MM-DD)? (Enter to keep)", "date");
+            c.specialRequest = updateField(c.specialRequest, "New special request? (Enter to keep)");
+            c.guestCount = updateField(c.guestCount, "New guest count? (0 to keep)");
+            c.tableCount = updateField(c.tableCount, "New table count? (0 to keep)");
+
+            cout << "New package ID? (Enter to keep): ";
+            {
+                string pkg; getline(cin, pkg);
+                if (!pkg.empty()) {
+                    c.selectedPackage = pkg;
+                    // 若切换到套餐，清空直选的场地/餐饮
+                    c.venueBooked.clear();
+                    c.cateringSelected.clear();
+                }
+            }
+            if (c.selectedPackage.empty()) {
+                c.venueBooked = updateField(c.venueBooked, "New venue ID? (Enter to keep)");
+                c.cateringSelected = updateField(c.cateringSelected, "New catering ID? (Enter to keep)");
+            }
+
+            cout << "New vendor IDs (semicolon-separated). Enter to keep: ";
+            {
+                string vids; getline(cin, vids);
+                if (!vids.empty()) c.selectedVendors = splitIds(vids, ';');
+            }
+
+            // 重新计算总价；支付状态先不动（后续做 Payment 模块时再自动联动）
+            c.totalPayment = computeClientTotal(c, packages, venues, caters, vendors);
+            if (c.amountPaid <= 0.0f) c.paymentStatus = "UNPAID";
+            else if (c.amountPaid + 1e-3 >= c.totalPayment) c.paymentStatus = "PAID";
+            else c.paymentStatus = "PARTIAL";
+
+            saveClients();
+            cout << "Updated.\nPress Enter..."; cin.get();
+        }
+
+        else if (x == 4) { // Show All
+            showAll();
+        }
+
+        else if (x == 5) { // Checkout / Reservation
+            checkoutWizard();
+}
+
+        else {
+            cout << " Invalid option.\nPress Enter..."; cin.get();
+        }
+    }
+}
+
+void managePayment() {
+    StringConst strConst;
+    int x;
+
+    vector<Payment> payments = getList<Payment>("payments.csv");
+    vector<Client>  clients = getList<Client>("clients.csv");
+
+    auto saveAll = [&]() {
+        // 先存 payments
+        saveList(payments, "payments.csv");
+        // 再按 payments 汇总回写 clients 的金额与状态
+        recomputeClientPayments(clients, payments);
+        saveList(clients, "clients.csv");
+        };
+
+    auto listClients = [&]() {
+        vector<vector<pair<string, string>>> recs;
+        for (auto& c : clients) {
+            recs.push_back({
+                {"Client ID", to_string(c.clientID)},
+                {"Name",      c.person.name},
+                {"Total",     to_string(c.totalPayment)},
+                {"Paid",      to_string(c.amountPaid)},
+                {"Status",    c.paymentStatus}
+                });
+        }
+        if (recs.empty()) cout << "No clients found.\n"; else printRecords<string>(recs, 1);
+        };
+
+    auto listPayments = [&]() {
+        vector<vector<pair<string, string>>> recs;
+        for (auto& p : payments) {
+            recs.push_back({
+                {"Payment ID",       to_string(p.paymentID)},
+                {"Client ID",        to_string(p.clientID)},
+                {"Amount",           to_string(p.amountPaid)},
+                {"Date",             p.paymentDate},
+                {"Method",           p.paymentMethod},
+                {"Discount Applied", to_string(p.discountApplied)},
+                {"Note",             p.note},
+                {"Status",           p.paymentStatus}
+                });
+        }
+        if (recs.empty()) cout << "No payments found.\n"; else printRecords<string>(recs, 1);
+        };
+
+
+    while (true) {
+        system("cls");
+        cout << strConst.LOGO_O << endl;
+        cout << strConst.TITLE << endl;
+        cout << strConst.PaymentMenu;  // 你已有的菜单文案
+        x = getValidatedInput<int>(" Choose an option: ", "", " Invalid option. Please enter a number: ");
+        if (x == 0) { showMainScreen(); return; }
+
+        if (x == 1) { // Create Payment
+            system("cls");
+            cout << "Clients:\n";
+            listClients();
+
+            Payment p;
+            p.paymentID = nextIntId("payments.csv");
+            p.clientID = getValidatedInput<int>("Enter client ID to pay for: ");
+            auto cit = find_if(clients.begin(), clients.end(),
+                [&](const Client& c) { return c.clientID == p.clientID; });
+            if (cit == clients.end()) { cout << "Client not found.\nPress Enter..."; cin.get(); continue; }
+
+            p.amountPaid = getValidatedInput<float>("Enter amount: ", "", " Invalid number: ");
+            p.paymentDate = getValidatedInput<string>("Enter payment date (YYYY-MM-DD): ", "date");
+            p.paymentMethod = getValidatedInput<string>("Payment method (Cash/Card/Transfer/...): ", "non_empty");
+            p.discountApplied = getValidatedInput<float>("Discount to apply with this record (0 if none): ");
+            if (p.discountApplied < 0) p.discountApplied = 0;
+            p.note = getValidatedInput<string>("Note (no comma please, Enter to skip): ");
+            p.paymentStatus = "RECEIVED";
+
+            payments.push_back(p);
+            saveAll();
+
+            cout << "Payment recorded. Client now Paid=" << cit->amountPaid
+                << " / Effective Total=" << max(0.0f, cit->totalPayment - p.discountApplied)
+                << " (" << cit->paymentStatus << ")\n";
+            cout << "Press Enter..."; cin.get();
+        }
+        else if (x == 2) 
+        { // Remove Payment
+            system("cls");
+            listPayments();
+            int pid = getValidatedInput<int>("Enter payment ID to remove: ");
+            auto it = remove_if(payments.begin(), payments.end(),
+                [&](const Payment& p) { return p.paymentID == pid; });
+            if (it != payments.end()) {
+                payments.erase(it, payments.end());
+                saveAll();
+                cout << "Removed.\n";
+            }
+            else {
+                cout << "Payment not found.\n";
+            }
+            cout << "Press Enter..."; cin.get();
+        }
+        else if (x == 3) 
+        { // Update Payment
+            system("cls");
+            listPayments();
+            int pid = getValidatedInput<int>("Enter payment ID to update: ");
+            auto it = find_if(payments.begin(), payments.end(),
+                [&](const Payment& p) { return p.paymentID == pid; });
+            if (it == payments.end()) { cout << "Not found.\nPress Enter..."; cin.get(); continue; }
+
+            Payment& p = *it;
+
+            int newCid = updateField(p.clientID, "New client ID? (0 to keep): ");
+            if (newCid != 0) p.clientID = newCid;
+
+            float newAmt = updateField(p.amountPaid, "New amount? (0 to keep): ");
+            if (newAmt > 0) p.amountPaid = newAmt;
+
+            string newDate = updateField(p.paymentDate, "New date (YYYY-MM-DD)?", "date");
+            if (!newDate.empty()) p.paymentDate = newDate;
+
+            string newMethod = updateField(p.paymentMethod, "New method? (Enter to keep): ");
+            if (!newMethod.empty()) p.paymentMethod = newMethod;
+
+            float newDisc = updateField(p.discountApplied, "New discount? (0 to keep): ");
+            if (newDisc >= 0) p.discountApplied = newDisc;
+
+            string newNote = updateField(p.note, "New note? (Enter to keep): ");
+            if (!newNote.empty()) p.note = newNote;
+
+            string newStat = updateField(p.paymentStatus, "New payment status? (e.g., RECEIVED/REFUND)", "non_empty");
+            if (!newStat.empty()) p.paymentStatus = newStat;
+
+            saveAll();
+            cout << "Updated.\nPress Enter..."; cin.get();
+        }
+
+        else if (x == 4) { // Show All Payments
+            system("cls");
+            listPayments();
+            cout << "Press Enter..."; cin.get();
+        }
+        else {
+            cout << " Invalid option.\nPress Enter..."; cin.get();
+        }
+    }
+}
+
+void manageGuest() {
+    StringConst strConst;
+    int x;
+    vector<GuestRecord> guests = getList<GuestRecord>("guests.csv");
+
+    auto save = [&]() { saveList(guests, "guests.csv"); };
+
+    auto listGuests = [&]() {
+        vector<vector<pair<string, string>>> recs;
+        for (auto& g : guests) {
+            recs.push_back({
+                {"Guest ID", to_string(g.guestID)},
+                {"Name", g.person.name},
+                {"Email", g.person.email},
+                {"Contact", g.person.contact},
+                {"RSVP", g.rsvpStatus},
+                {"Meal", g.mealPreference},
+                {"Table", to_string(g.tableNumber)}
+                });
+        }
+        if (recs.empty()) cout << "No guests found.\n"; else printRecords<string>(recs, 2);
+        };
+
+    while (true) {
+        system("cls");
+        cout << strConst.LOGO_O << endl;
+        cout << strConst.TITLE << endl;
+        cout << strConst.GuestMenu;
+        x = getValidatedInput<int>(" Choose an option: ", "", " Invalid option. Please enter a number: ");
+        if (x == 0) return;
+
+        if (x == 1) { // Import Guest List（文件名自行输入）
+            system("cls");
+            cout << "Enter import filename (e.g., guests_import.csv): ";
+            string fname; getline(cin, fname);
+
+            vector<GuestRecord> incoming = getList<GuestRecord>(fname);
+            int nextId = nextIntId("guests.csv");
+
+            // 保证ID不重复/不为0
+            map<int, bool> used;
+            for (auto& g : guests) used[g.guestID] = true;
+            for (auto g : incoming) {
+                if (g.guestID <= 0 || used[g.guestID]) g.guestID = nextId++;
+                used[g.guestID] = true;
+                guests.push_back(g);
+            }
+            save();
+            cout << "Imported " << incoming.size() << " guests.\nPress Enter..."; cin.get();
+        }
+        else if (x == 2) { // Update Guest RSVP
+            system("cls");
+            listGuests();
+            int gid = getValidatedInput<int>("Enter guest ID to update: ");
+            auto it = find_if(guests.begin(), guests.end(),
+                [&](const GuestRecord& g) { return g.guestID == gid; });
+            if (it == guests.end()) { cout << "Guest not found.\nPress Enter..."; cin.get(); continue; }
+            GuestRecord& g = *it;
+
+            g.rsvpStatus = updateField(g.rsvpStatus, "New RSVP? (YES/NO/MAYBE): ", "non_empty");
+            g.mealPreference = updateField(g.mealPreference, "New meal preference?: ");
+            int newTable = updateField(g.tableNumber, "New table number? (0 to keep): ");
+            if (newTable > 0) g.tableNumber = newTable;
+
+            save();
+            cout << "Updated.\nPress Enter..."; cin.get();
+        }
+        else if (x == 3) { // Show Guest List
+            system("cls"); listGuests(); cout << "Press Enter..."; cin.get();
+        }
+        else {
+            cout << " Invalid option.\nPress Enter..."; cin.get();
+        }
+    }
+}
+
+void manageSchedule() {
+    StringConst strConst;
+    int x;
+    vector<EventSchedule> schedules = getList<EventSchedule>("schedules.csv");
+
+    auto save = [&]() { saveList(schedules, "schedules.csv"); };
+
+    auto listSchedules = [&]() {
+        vector<vector<pair<string, string>>> recs;
+        for (auto& s : schedules) {
+            recs.push_back({
+                {"Schedule ID", to_string(s.scheduleID)},
+                {"Client ID", to_string(s.clientID)},
+                {"Date", s.weddingDate},
+                {"Time", s.time},
+                {"Activity", s.activity}
+                });
+        }
+        if (recs.empty()) cout << "No schedules found.\n"; else printRecords<string>(recs, 1);
+        };
+
+    while (true) {
+        system("cls");
+        cout << strConst.LOGO_O << endl;
+        cout << strConst.TITLE << endl;
+        cout << strConst.ScheduleMenu;
+        x = getValidatedInput<int>(" Choose an option: ", "", " Invalid option. Please enter a number: ");
+        if (x == 0) return;
+
+        if (x == 1) { // Create
+            EventSchedule s;
+            s.scheduleID = nextIntId("schedules.csv");
+            s.clientID = getValidatedInput<int>("Enter client ID: ");
+            s.weddingDate = getValidatedInput<string>("Date (YYYY-MM-DD): ", "date");
+            s.time = getValidatedInput<string>("Time (HH:MM): ", "time");
+            s.activity = getValidatedInput<string>("Activity: ", "non_empty");
+            schedules.push_back(s);
+            save();
+            cout << "Created.\nPress Enter..."; cin.get();
+        }
+        else if (x == 2) { // Update
+            system("cls");
+            listSchedules();
+            int sid = getValidatedInput<int>("Enter schedule ID to update: ");
+            auto it = find_if(schedules.begin(), schedules.end(),
+                [&](const EventSchedule& s) { return s.scheduleID == sid; });
+            if (it == schedules.end()) { cout << "Not found.\nPress Enter..."; cin.get(); continue; }
+            EventSchedule& s = *it;
+
+            int newCid = updateField(s.clientID, "New client ID? (0 to keep): ");
+            if (newCid != 0) s.clientID = newCid;
+            string newDate = updateField(s.weddingDate, "New date (YYYY-MM-DD)?", "date");
+            if (!newDate.empty()) s.weddingDate = newDate;
+            string newTime = updateField(s.time, "New time (HH:MM)?", "time");
+            if (!newTime.empty()) s.time = newTime;
+            string newAct = updateField(s.activity, "New activity?", "non_empty");
+            if (!newAct.empty()) s.activity = newAct;
+
+            save();
+            cout << "Updated.\nPress Enter..."; cin.get();
+        }
+        else if (x == 3) { // Remove
+            system("cls");
+            listSchedules();
+            int sid = getValidatedInput<int>("Enter schedule ID to remove: ");
+            auto it = remove_if(schedules.begin(), schedules.end(),
+                [&](const EventSchedule& s) { return s.scheduleID == sid; });
+            if (it != schedules.end()) {
+                schedules.erase(it, schedules.end());
+                save();
+                cout << "Removed.\n";
+            }
+            else cout << "Not found.\n";
+            cout << "Press Enter..."; cin.get();
+        }
+        else if (x == 4) { // Show All
+            system("cls"); listSchedules(); cout << "Press Enter..."; cin.get();
+        }
+        else {
+            cout << " Invalid option.\nPress Enter..."; cin.get();
+        }
+    }
+}
+
+void manageEventMonitoring() {
+    StringConst strConst;
+    int x;
+    while (true) {
+        system("cls");
+        cout << strConst.LOGO_O << endl;
+        cout << strConst.TITLE << endl;
+        cout << strConst.EventMonitoringMenu;
+        x = getValidatedInput<int>(" Choose an option: ", "", " Invalid option. Please enter a number: ");
+        if (x == 0) { showMainScreen(); return; }
+        if (x == 1) { manageGuest(); }
+        else if (x == 2) { manageSchedule(); }
+        else { cout << " Invalid option.\nPress Enter..."; cin.get(); }
+    }
+}
+
+void searchFun() {
+    StringConst strConst;
+    int x;
+
+    auto icontains = [&](const string& hay, const string& needle) {
+        if (needle.empty()) return false;
+        string h = hay, n = needle;
+        transform(h.begin(), h.end(), h.begin(),
+            [](unsigned char c) { return std::tolower(c); });
+        transform(n.begin(), n.end(), n.begin(),
+            [](unsigned char c) { return std::tolower(c); });
+        return h.find(n) != string::npos;
+        };
+
+    while (true) {
+        system("cls");
+        cout << strConst.LOGO_O << endl;
+        cout << strConst.TITLE << endl;
+        cout << strConst.SearchMenu;
+        x = getValidatedInput<int>(" Choose an option: ", "", " Invalid option. Please enter a number: ");
+        if (x == 0) { showMainScreen(); return; }
+
+        if (x == 1) { // Search Client
+            vector<Client> clients = getList<Client>("clients.csv");
+            string q = getValidatedInput<string>("Enter client name/email/ID/date keyword: ", "non_empty");
+
+            vector<vector<pair<string, string>>> recs;
+            for (const auto& c : clients) {
+                if (icontains(c.person.name, q) ||
+                    icontains(c.person.email, q) ||
+                    icontains(c.weddingDate, q) ||
+                    icontains(to_string(c.clientID), q)) {
+                    recs.push_back({
+                        {"Client ID",   to_string(c.clientID)},
+                        {"Name",        c.person.name},
+                        {"Email",       c.person.email},
+                        {"Wedding Date",c.weddingDate},
+                        {"Status",      c.paymentStatus}
+                        });
+                }
+            }
+            if (recs.empty()) cout << "No matches.\n";
+            else printRecords<string>(recs, 1);
+            cout << "Press Enter..."; cin.get();
+        }
+        else if (x == 2) { // Search Event (packages/venues/caterings)
+            vector<Package> packages = getList<Package>("packages.csv");
+            vector<Venue>   venues = getList<Venue>("venues.csv");
+            vector<Cater>   caters = getList<Cater>("caterings.csv");
+            string q = getValidatedInput<string>("Enter keyword (ID/name/location/desc): ", "non_empty");
+
+            cout << "\nPackages matched:\n";
+            {
+                vector<vector<pair<string, string>>> recs;
+                for (const auto& p : packages) {
+                    if (icontains(p.packageID, q) || icontains(p.packageName, q) || icontains(p.description, q)) {
+                        recs.push_back({
+                            {"Package ID", p.packageID},
+                            {"Name",       p.packageName},
+                            {"Price",      to_string(p.price)}
+                            });
+                    }
+                }
+                if (recs.empty()) cout << "(none)\n"; else printRecords<string>(recs, 1);
+            }
+
+            cout << "Venues matched:\n";
+            {
+                vector<vector<pair<string, string>>> recs;
+                for (const auto& v : venues) {
+                    if (icontains(v.venueID, q) || icontains(v.venueName, q) || icontains(v.location, q)) {
+                        recs.push_back({
+                            {"Venue ID", v.venueID},
+                            {"Name",     v.venueName},
+                            {"Location", v.location}
+                            });
+                    }
+                }
+                if (recs.empty()) cout << "(none)\n"; else printRecords<string>(recs, 1);
+            }
+
+            cout << "Caterings matched:\n";
+            {
+                vector<vector<pair<string, string>>> recs;
+                for (const auto& c : caters) {
+                    if (icontains(c.caterID, q) || icontains(c.caterName, q) || icontains(c.menuDescription, q)) {
+                        recs.push_back({
+                            {"Cater ID", c.caterID},
+                            {"Name",     c.caterName},
+                            {"Menu",     c.menuDescription}
+                            });
+                    }
+                }
+                if (recs.empty()) cout << "(none)\n"; else printRecords<string>(recs, 1);
+            }
+
+            cout << "Press Enter..."; cin.get();
+        }
+        else if (x == 3) { // Search Vendor
+            vector<Vendor> vendors = getList<Vendor>("vendors.csv");
+            string q = getValidatedInput<string>("Enter keyword (ID/type/name/email/contact): ", "non_empty");
+
+            vector<vector<pair<string, string>>> recs;
+            for (const auto& v : vendors) {
+                if (icontains(v.vendorID, q) || icontains(v.vendorType, q) ||
+                    icontains(v.person.name, q) || icontains(v.person.email, q) ||
+                    icontains(v.person.contact, q)) {
+                    recs.push_back({
+                        {"Vendor ID", v.vendorID},
+                        {"Type",      v.vendorType},
+                        {"Name",      v.person.name},
+                        {"Email",     v.person.email},
+                        {"Contact",   v.person.contact},
+                        {"Cost",      to_string(v.cost)}
+                        });
+                }
+            }
+            if (recs.empty()) cout << "No matches.\n";
+            else printRecords<string>(recs, 2);
+            cout << "Press Enter..."; cin.get();
+        }
+        else {
+            cout << " Invalid option.\nPress Enter..."; cin.get();
+        }
+    }
+}
+
 
 int main() {
     showLoginScreen();
