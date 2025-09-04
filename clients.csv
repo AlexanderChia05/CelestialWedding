@@ -1,1 +1,5 @@
-1,jayden,jayden123@gmail.com,0123456789,lily,2025-09-10,with right hand,500,50,P0002,,,V003,510.000000,200.000000,PARTIAL
+C0001,Alex Carter,alex@example.com,555-0100,Jamie Lee,2025-08-15,None,120,12,PK0001,,,VD0001;VD0003,8000,2000,PARTIAL
+C0002,Blake Nguyen,blake@example.com,555-0101,Taylor Kim,2025-09-10,Vegetarian table near stage,150,15,,VN0002,CT0001,VD0002,5345,1000,PARTIAL
+C0003,Casey Patel,casey@example.com,555-0102,Riley Brooks,2025-11-20,Sparkler exit,180,18,PK0003,,,,9000,9000,PAID
+C0004,Drew Morgan,drew@example.com,555-0103,Sasha Reed,2026-01-05,Live band,220,22,,VN0003,CT0003,VD0004;VD0005,9850,5000,PARTIAL
+C0005,Emery Fox,emery@example.com,555-0104,Jordan Park,2025-07-12,Gluten free dessert,80,8,,,VD0006;VD0007,2500,0,UNPAID

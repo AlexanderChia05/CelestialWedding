@@ -1,4 +1,4 @@
-﻿#include <iostream> 
+﻿#include<iostream>
 #include <iomanip>
 #include <fstream>
 #include <sstream>
@@ -297,8 +297,8 @@ struct Payment {
 
 
 struct EventSchedule {
-    int scheduleID = 0;
-    int clientID = 0;
+    string scheduleID = "S0000";
+    string clientID = "C0000";
     string weddingDate;
     string time;
     string activity;
@@ -317,7 +317,7 @@ struct EventSchedule {
     }
 
     void toString(string& line) const {
-        line = to_string(scheduleID) + "," + to_string(clientID) + "," + weddingDate + "," + time + "," + activity;
+        line = scheduleID + "," + clientID + "," + weddingDate + "," + time + "," + activity;
     }
 };
 
@@ -972,8 +972,10 @@ void recomputeClientPayments(vector<Client>& clients, const vector<Payment>& pay
 
 
 
-void checkoutWizard() {
+void checkoutWizard() 
+{
     StringConst strConst;
+
     vector<Client>   clients = getList<Client>("clients.csv");
     vector<Package>  packages = getList<Package>("packages.csv");
     vector<Venue>    venues = getList<Venue>("venues.csv");
@@ -981,7 +983,8 @@ void checkoutWizard() {
     vector<Vendor>   vendors = getList<Vendor>("vendors.csv");
     vector<Payment>  payments = getList<Payment>("payments.csv");
 
-    auto saveAll = [&]() {
+    auto saveAll = [&]() 
+        {
         saveList(payments, "payments.csv");
         recomputeClientPayments(clients, payments);
         saveList(clients, "clients.csv");
@@ -991,7 +994,8 @@ void checkoutWizard() {
     cout << strConst.LOGO_O << endl;
     cout << strConst.TITLE << endl;
 
-    if (clients.empty()) {
+    if (clients.empty()) 
+    {
         cout << "No clients found. Please create a client first.\n";
         cout << "Press Enter..."; cin.get();
         return;
@@ -1000,8 +1004,11 @@ void checkoutWizard() {
     // Select Client
     {
         vector<vector<pair<string, string>>> recs;
-        for (auto& c : clients) {
-            recs.push_back({
+
+        for (auto& c : clients) 
+        {
+            recs.push_back(
+                {
                 {"Client ID", c.clientID},
                 {"Name", c.person.name},
                 {"Wedding Date", c.weddingDate},
@@ -1033,8 +1040,12 @@ void checkoutWizard() {
 
     // 输入折扣
     float discount = getValidatedInput<float>("Enter discount amount (0 for none): ");
-    if (discount < 0) discount = 0;
-    if (discount > subtotal) discount = subtotal;
+    if (discount < 0) 
+        discount = 0;
+
+    if (discount > subtotal) 
+        discount = subtotal;
+
     float net = subtotal - discount;
 
     // 发票预览
@@ -1112,7 +1123,7 @@ void checkoutWizard() {
             {"Method", p.paymentMethod},
             {"Discount Applied", to_string(p.discountApplied)},
             {"Client Paid Total", to_string(c.amountPaid)},
-            {"Effective Order Total", to_string(max(0.0f, c.totalPayment - p.discountApplied))},
+            {"Effective Order Total", to_string(max(0.0f, c.totalPayment - allDiscount))},
             {"Client Status", c.paymentStatus}
             });
         printRecords<string>(receipt, 1);
@@ -1123,7 +1134,7 @@ void checkoutWizard() {
         // 不立即支付：若有折扣，建议也入账，以便状态计算用“有效总额”
         if (discount > 0.0f) {
             Payment p;
-            p.paymentID = nextIntId("payments.csv");
+            p.paymentID = uniqueIDGenerator<Payment>("P", "payments.csv");
             p.clientID = c.clientID;
             p.amountPaid = 0.0f;
             p.paymentDate = getValidatedInput<string>("Record date for discount (YYYY-MM-DD): ", "date");
@@ -1137,7 +1148,7 @@ void checkoutWizard() {
         else {
             // 只记录“订单确认”
             Payment p;
-            p.paymentID = nextIntId("payments.csv");
+            p.paymentID = uniqueIDGenerator<Payment>("P", "payments.csv");
             p.clientID = c.clientID;
             p.amountPaid = 0.0f;
             p.paymentDate = getValidatedInput<string>("Order confirmation date (YYYY-MM-DD): ", "date");
@@ -2433,9 +2444,11 @@ void managePayment() {
         if (recs.empty()) cout << "No clients found.\n"; else printRecords<string>(recs, 1);
         };
 
-    auto listPayments = [&]() {
+    auto listPayments = [&]() 
+        {
         vector<vector<pair<string, string>>> recs;
-        for (auto& p : payments) {
+        for (auto& p : payments) 
+        {
             recs.push_back({
                 {"Payment ID",       p.paymentID},
                 {"Client ID",        p.clientID},
@@ -2456,10 +2469,17 @@ void managePayment() {
         cout << strConst.LOGO_O << endl;
         cout << strConst.TITLE << endl;
         cout << strConst.PaymentMenu;  // 你已有的菜单文案
-        x = getValidatedInput<int>(" Choose an option: ", "", " Invalid option. Please enter a number: ");
-        if (x == 0) { showMainScreen(); return; }
 
-        if (x == 1) { // Create Payment
+        x = getValidatedInput<int>(" Choose an option: ", "", " Invalid option. Please enter a number: ");
+        
+        if (x == 0) 
+        { 
+            showMainScreen(); 
+            return; 
+        }
+
+        if (x == 1) 
+        { // Create Payment
             system("cls");
             cout << "Clients:\n";
             listClients();
@@ -2476,23 +2496,29 @@ void managePayment() {
             if (cit == clients.end()) 
             { 
                 cout << "Client not found.\nPress Enter..."; 
-                cin.get(); continue; 
+                cin.get(); 
+                continue; 
             }
 
             p.amountPaid = getValidatedInput<float>("Enter amount: ", "", " Invalid number: ");
             p.paymentDate = getValidatedInput<string>("Enter payment date (YYYY-MM-DD): ", "date");
             p.paymentMethod = getValidatedInput<string>("Payment method (Cash/Card/Transfer/...): ", "non_empty");
             p.discountApplied = getValidatedInput<float>("Discount to apply with this record (0 if none): ");
+            
             if (p.discountApplied < 0) 
                 p.discountApplied = 0;
+
             p.note = getValidatedInput<string>("Note (no comma please, Enter to skip): ");
             p.paymentStatus = "RECEIVED";
 
             payments.push_back(p);
             saveAll();
 
+            float totalDisc = 0.0f;
+            for (const auto& q : payments) if (q.clientID == p.clientID) totalDisc += q.discountApplied;
+
             cout << "Payment recorded. Client now Paid=" << cit->amountPaid
-                << " / Effective Total=" << max(0.0f, cit->totalPayment - p.discountApplied)
+                << " / Effective Total=" << max(0.0f, cit->totalPayment - totalDisc)
                 << " (" << cit->paymentStatus << ")\n";
             cout << "Press Enter..."; 
 cin.get();
@@ -2648,8 +2674,8 @@ void manageSchedule() {
         vector<vector<pair<string, string>>> recs;
         for (auto& s : schedules) {
             recs.push_back({
-                {"Schedule ID", to_string(s.scheduleID)},
-                {"Client ID", to_string(s.clientID)},
+                {"Schedule ID", s.scheduleID},
+                {"Client ID", s.clientID},
                 {"Date", s.weddingDate},
                 {"Time", s.time},
                 {"Activity", s.activity}
@@ -2680,14 +2706,14 @@ void manageSchedule() {
         else if (x == 2) { // Update
             system("cls");
             listSchedules();
-            int sid = getValidatedInput<int>("Enter schedule ID to update: ");
+            string sid = getValidatedInput<string>("Enter schedule ID to update: ");
             auto it = find_if(schedules.begin(), schedules.end(),
                 [&](const EventSchedule& s) { return s.scheduleID == sid; });
             if (it == schedules.end()) { cout << "Not found.\nPress Enter..."; cin.get(); continue; }
             EventSchedule& s = *it;
 
-            int newCid = updateField(s.clientID, "New client ID? (0 to keep): ");
-            if (newCid != 0) s.clientID = newCid;
+            string newCid = updateField(s.clientID, "New client ID? (0 to keep): ");
+            if (!newCid.empty()) s.clientID = newCid;
             string newDate = updateField(s.weddingDate, "New date (YYYY-MM-DD)?", "date");
             if (!newDate.empty()) s.weddingDate = newDate;
             string newTime = updateField(s.time, "New time (HH:MM)?", "time");
@@ -2701,7 +2727,7 @@ void manageSchedule() {
         else if (x == 3) { // Remove
             system("cls");
             listSchedules();
-            int sid = getValidatedInput<int>("Enter schedule ID to remove: ");
+            string sid = getValidatedInput<string>("Enter schedule ID to remove: ");
             auto it = remove_if(schedules.begin(), schedules.end(),
                 [&](const EventSchedule& s) { return s.scheduleID == sid; });
             if (it != schedules.end()) {
