@@ -1,0 +1,67 @@
+FM1001,FP0101,COLD_PLATTER,Five Variety Cold Platter,FISH|SHELLFISH|EGG|GLUTEN,0.00,Pickled jellyfish prawn chicken
+FM1002,FP0101,SOUP,Braised Seafood Soup,SHELLFISH|GLUTEN|EGG,0.00,Shark fin substitute
+FM1003,FP0101,SEAFOOD,Steamed Sea Bass Soy,FISH|SOY|GLUTEN,0.00,Light soy ginger
+FM1004,FP0101,POULTRY,Roast Crispy Chicken,GLUTEN,0.00,Sesame salt dip
+FM1005,FP0101,PRAWN,Wok Fried Tiger Prawns Cereal,SHELLFISH|GLUTEN,0.00,Curry leaves
+FM1006,FP0101,MEAT,Beef with Black Pepper,SOY|GLUTEN,0.00,Sizzling plate
+FM1007,FP0101,VEGETABLE,Broccoli with Shiitake,SOY|GLUTEN,0.00,Oyster style sauce
+FM1008,FP0101,RICE_NOODLE,Lotus Leaf Fragrant Rice,GLUTEN,0.00,Chinese sausage style
+FM1009,FP0101,DESSERT,Red Bean Soup with Lotus,,0.00,Longan and lily bulb
+FM1010,FP0102,COLD_PLATTER,Deluxe Cold Platter,FISH|SHELLFISH|EGG|GLUTEN,0.00,Abalone slice smoked duck
+FM1011,FP0102,SOUP,Double Boiled Chicken Soup with Ginseng,,0.00,Herbal dates goji
+FM1012,FP0102,ABALONE,Braised Abalone with Mushroom,SHELLFISH,80.00,Per table upgrade
+FM1013,FP0102,SEAFOOD,Steamed Grouper Hong Kong Style,FISH|SOY|GLUTEN,0.00,Premium soy
+FM1014,FP0102,POULTRY,Roast Duck with Plum Sauce,GLUTEN,0.00,Quartered service
+FM1015,FP0102,PRAWN,Butter Prawns with Oats,SHELLFISH|DAIRY|GLUTEN,0.00,Buttery aroma
+FM1016,FP0102,VEGETABLE,Asparagus with Scallop,SHELLFISH|SOY|GLUTEN,30.00,Add scallop
+FM1017,FP0102,RICE_NOODLE,Ee Fu Noodles with Chives,GLUTEN,0.00,Wedding noodle
+FM1018,FP0102,DESSERT,Sweetened Red Dates and Longan,,0.00,Warm dessert
+FM1020,FP0103,APPETIZER,Kerabu Mango Salad,NUTS,0.00,Peanut garnish
+FM1021,FP0103,POULTRY,Ayam Masak Merah,,0.00,Tomato chili gravy
+FM1022,FP0103,MEAT,Daging Rendang Tok,,0.00,Slow cooked
+FM1023,FP0103,FISH,Ikan Masak Lemak Cili Api,FISH|DAIRY,0.00,Coconut milk
+FM1024,FP0103,VEGETABLE,Acar Rampai,,0.00,Pickled veg
+FM1025,FP0103,RICE,Nasi Minyak,,0.00,Fragrant rice
+FM1026,FP0103,DESSERT,Kuih Muih Assortment,EGG|DAIRY|GLUTEN,0.00,Assorted traditional
+FM1027,FP0103,DRINK,Teh Tarik,DAIRY,0.00,Hot milk tea
+FM1030,FP0104,APPETIZER,Ulam Ulaman with Sambal,,0.00,Herbs and raw veg
+FM1031,FP0104,POULTRY,Ayam Percik,,0.00,Creamy coconut spice
+FM1032,FP0104,FISH,Ikan Bakar with Air Asam,FISH,0.00,Grilled fish
+FM1033,FP0104,MEAT,Lamb Kurma,DAIRY,0.00,Mild spice
+FM1034,FP0104,VEGETABLE,Sayur Lodeh,DAIRY,0.00,Vegetable coconut stew
+FM1035,FP0104,RICE,Nasi Hujan Panas,,0.00,Colorful rice
+FM1036,FP0104,DESSERT,Sago Gula Melaka,,0.00,Palm sugar syrup
+FM1037,FP0104,DRINK,Sirap Bandung,DAIRY,0.00,Rose milk
+FM1040,FP0105,APPETIZER,Caesar Salad,FISH|EGG|DAIRY|GLUTEN,0.00,Anchovy dressing
+FM1041,FP0105,MAIN,Chicken Roulade with Jus,DAIRY,0.00,Potato puree
+FM1042,FP0105,DESSERT,Chocolate Lava Cake,EGG|DAIRY|GLUTEN,0.00,Vanilla cream
+FM1050,FP0106,APPETIZER,Smoked Salmon Rose,FISH|DAIRY,0.00,Capers and dill
+FM1051,FP0106,SOUP,Truffle Mushroom Soup,DAIRY,0.00,Black truffle oil
+FM1052,FP0106,MAIN,Beef Tenderloin with Jus,DAIRY,40.00,Upgrade to beef
+FM1053,FP0106,DESSERT,Tiramisu,EGG|DAIRY|GLUTEN,0.00,Classic style
+FM1060,FP0107,APPETIZER,Chaat Platter,GLUTEN|DAIRY,0.00,Papdi and dahi
+FM1061,FP0107,POULTRY,Butter Chicken,DAIRY|NUTS,0.00,Rich tomato
+FM1062,FP0107,MEAT,Lamb Rogan Josh,DAIRY,0.00,Spiced gravy
+FM1063,FP0107,VEGETARIAN,Palak Paneer,DAIRY,0.00,Spinach cottage cheese
+FM1064,FP0107,RICE,Basmati Biryani,,0.00,Saffron rice
+FM1065,FP0107,BREAD,Assorted Naan,GLUTEN|DAIRY,0.00,Butter and garlic
+FM1066,FP0107,DESSERT,Gulab Jamun,DAIRY,0.00,Syrup soaked
+FM1070,FP0108,APPETIZER,Roasted Pumpkin Salad,NUTS,0.00,Walnut crunch
+FM1071,FP0108,SOUP,Tomato Basil Soup,,0.00,Olive oil drizzle
+FM1072,FP0108,MAIN,Mushroom Wellington,GLUTEN|DAIRY,0.00,Puff pastry
+FM1073,FP0108,SIDE,Grilled Vegetables,,0.00,Seasonal mix
+FM1074,FP0108,DESSERT,Lemon Posset,DAIRY,0.00,Shortbread crumb
+FM1080,FP0109,BUFFET_STATION,Sushi and Sashimi,FISH,0.00,Live station
+FM1081,FP0109,BUFFET_STATION,Carvery Roast Beef,DAIRY,0.00,With gravy
+FM1082,FP0109,BUFFET_STATION,Pasta Station,GLUTEN|DAIRY,0.00,Two sauces
+FM1083,FP0109,BUFFET_STATION,Grill Station,GLUTEN,0.00,Chicken lamb fish
+FM1084,FP0109,SALAD,Antipasti Bar,NUTS,0.00,Cheese and olives
+FM1085,FP0109,DESSERT,Dessert Bar Assortment,EGG|DAIRY|GLUTEN,0.00,Petit fours
+FM1090,FP0110,COLD_PLATTER,Vegetarian Cold Platter,GLUTEN,0.00,Mock meats
+FM1091,FP0110,SOUP,Double Boiled Herbal Soup,,0.00,Red dates goji
+FM1092,FP0110,VEGETARIAN,Braised Monkey Head Mushroom,GLUTEN,0.00,With broccoli
+FM1093,FP0110,TOFU,Steamed Tofu with Soy,SOY|GLUTEN,0.00,Ginger spring onion
+FM1094,FP0110,VEGETABLE,Seasonal Greens with Garlic,,0.00,Light stir fry
+FM1095,FP0110,RICE_NOODLE,Vegetarian Ee Fu Noodles,GLUTEN,0.00,Chives mushroom
+FM1096,FP0110,DESSERT,Snow Fungus Sweet Soup,,0.00,Longan and lotus seed
+

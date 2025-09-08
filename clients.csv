@@ -1,5 +1,6 @@
-C0001,Alex Carter,alex@example.com,555-0100,Jamie Lee,2025-08-15,None,120,12,PK0001,,,VD0001;VD0003,8000,2000,PARTIAL
-C0002,Blake Nguyen,blake@example.com,555-0101,Taylor Kim,2025-09-10,Vegetarian table near stage,150,15,,VN0002,CT0001,VD0002,5345,1000,PARTIAL
-C0003,Casey Patel,casey@example.com,555-0102,Riley Brooks,2025-11-20,Sparkler exit,180,18,PK0003,,,,9000,9000,PAID
-C0004,Drew Morgan,drew@example.com,555-0103,Sasha Reed,2026-01-05,Live band,220,22,,VN0003,CT0003,VD0004;VD0005,9850,5000,PARTIAL
-C0005,Emery Fox,emery@example.com,555-0104,Jordan Park,2025-07-12,Gluten free dessert,80,8,,,VD0006;VD0007,2500,0,UNPAID
+﻿C0001,Li Wei,Tan,liweitan@example.com,012-3456789,Mei Ling,2025-10-12,Prefer pastel flowers,180,18,PK0001,,,,"VD0001;VD0003",8888.00,4444.00,PARTIAL
+C0002,Hannah,Lim,hannah.lim@example.com,017-1112233,Jun Hao,2025-11-22,Halal menu only,120,12,,VN0001,FP0001,,"VD0002",0.00,0.00,UNPAID
+C0003,Arif,Iskandar,arif.iskandar@example.com,013-2223344,Sarah,2026-01-03,None,200,20,,VN0002,,CT0001,,0.00,0.00,UNPAID
+C0004,Emily,Chia,emily@gmail.com,0167293128,,,,0,0,,,,,,0.00,0.00,UNPAID
+C0005,Jayden,Pak,jayden@gmail.com,0123456789,,,,0,0,,,,,,0.00,0.00,UNPAID
+C0006,Steph,Lo,steph@gmail.com,0198765432,,,,0,0,,,,,,0.00,0.00,UNPAID
