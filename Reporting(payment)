@@ -1,0 +1,47 @@
+void paymentReport() {
+    vector<Payment> paymentList = getList<Payment>("payments.csv");
+    vector<Client> clientList = getList<Client>("clients.csv");
+
+    if (paymentList.empty() || clientList.empty()) {
+        cout << "\nNo payments or clients found.\n";
+        cin.get();
+        return;
+    }
+
+    cout << "\n========== PAYMENT REPORT ==========\n";
+    cout << left << setw(10) << "Pay ID"
+         << setw(15) << "Client Name"
+         << setw(12) << "Total Cost"
+         << setw(12) << "Paid"
+         << setw(12) << "Balance"
+         << setw(10) << "Status" << endl;
+    cout << "-----------------------------------------------------------\n";
+
+    float totalRevenue = 0, totalOutstanding = 0;
+
+    for (const auto &p : paymentList) {
+        auto clientIt = find_if(clientList.begin(), clientList.end(),
+                                [&](const Client &c) { return c.clientID == p.clientID; });
+
+        string clientName = (clientIt != clientList.end()) ? clientIt->person.name : "Unknown";
+        float totalCost = (clientIt != clientList.end()) ? clientIt->totalPayment : 0;
+        float balance = totalCost - p.amountPaid;
+
+        cout << left << setw(10) << ("PAY" + string(4 - to_string(p.paymentID).length(), '0') + to_string(p.paymentID))
+             << setw(15) << clientName
+             << setw(12) << fixed << setprecision(2) << totalCost
+             << setw(12) << fixed << setprecision(2) << p.amountPaid
+             << setw(12) << fixed << setprecision(2) << (balance > 0 ? balance : 0)
+             << setw(10) << p.paymentStatus << endl;
+
+        totalRevenue += p.amountPaid;
+        totalOutstanding += (balance > 0 ? balance : 0);
+    }
+
+    cout << "-----------------------------------------------------------\n";
+    cout << "Total Revenue Collected: RM " << fixed << setprecision(2) << totalRevenue << endl;
+    cout << "Total Outstanding Balance: RM " << fixed << setprecision(2) << totalOutstanding << endl;
+    cout << "=====================================\n";
+
+    cin.get();
+}
